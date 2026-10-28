@@ -19,7 +19,7 @@ function parseCSV(filePath: string): Record<string, string>[] {
   });
 }
 
-const CSV_DIR = "/Users/kevinlfavrejarupkin/Downloads/OC_GrupoDilfer_CSVs";
+const CSV_DIR = path.join(__dirname, "data");
 
 async function main() {
   console.log("Seeding...");

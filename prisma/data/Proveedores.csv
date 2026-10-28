@@ -1,0 +1,3 @@
+ID_Proveedor,Razon_Social,CUIT,Telefono,Email,Activo,CBU,Alias,Titular_Cuenta,Mail_Contacto,WhatsApp
+PROV001,Prueba SA,,,prueba@gmail.com,SI,00723584567221253366,prueba.santander,Prueba SA,prueba@gmail.com,
+PROV002,Pruebita SA,,,pruebita@gmail.com,SI,00723584567221253366,pruebita.nacion,pruebita SA,pruebita@gmail.com,
