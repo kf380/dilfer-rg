@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id           String   @id @default(cuid())
+  codigo       String   @unique
+  razonSocial  String
+  cuit         String?
+  direccion    String?
+  telefono     String?
+  email        String?
+  activa       Boolean  @default(true)
+  ultimoNumero Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  usuarios     Usuario[]
+  cuentas      CuentaContable[]
+  centrosCosto CentroCosto[]
+  rgs          RG[]
+}
+
+model Usuario {
+  id             String   @id @default(cuid())
+  username       String   @unique
+  nombreCompleto String
+  passwordHash   String
+  activo         Boolean  @default(true)
+  rol            String   @default("Usuario")
+  area           String
+  empresaId      String?
+  createdAt      DateTime @default(now())
+
+  empresa        Empresa? @relation(fields: [empresaId], references: [id])
+  rgs            RG[]
+}
+
+model Area {
+  id     String @id @default(cuid())
+  nombre String @unique
+}
+
+model Proveedor {
+  id            String   @id @default(cuid())
+  codigo        String   @unique
+  razonSocial   String
+  cuit          String?
+  telefono      String?
+  email         String?
+  activo        Boolean  @default(true)
+  cbu           String?
+  alias         String?
+  titularCuenta String?
+  mailContacto  String?
+  whatsapp      String?
+  createdAt     DateTime @default(now())
+
+  lineas        RGLinea[]
+}
+
+model CuentaContable {
+  id               String   @id @default(cuid())
+  empresaId        String
+  codigo           String
+  nombre           String
+  descripcion      String?
+  areasHabilitadas String?
+  createdAt        DateTime @default(now())
+
+  empresa          Empresa  @relation(fields: [empresaId], references: [id])
+  lineas           RGLinea[]
+
+  @@unique([empresaId, codigo])
+}
+
+model CentroCosto {
+  id          String   @id @default(cuid())
+  empresaId   String?
+  nombre      String
+  descripcion String?
+  createdAt   DateTime @default(now())
+
+  empresa     Empresa? @relation(fields: [empresaId], references: [id])
+  lineas      RGLinea[]
+}
+
+model RG {
+  id            String    @id @default(cuid())
+  nroRG         String    @unique
+  empresaId     String
+  fecha         DateTime
+  responsableId String
+  area          String?
+  fechaRegistro DateTime  @default(now())
+
+  empresa       Empresa   @relation(fields: [empresaId], references: [id])
+  responsable   Usuario   @relation(fields: [responsableId], references: [id])
+  lineas        RGLinea[]
+}
+
+model RGLinea {
+  id                  String          @id @default(cuid())
+  rgId                String
+  linea               Int
+  proveedorId         String?
+  proveedorTexto      String?
+  comprobante         String?
+  fechaComprobante    DateTime?
+  detalleGasto        String
+  cuentaId            String?
+  cuentaTexto         String?
+  centroCostoId       String?
+  centroCostoTexto    String?
+  monto               Float
+  formaPago           String
+  cbu                 String?
+  alias               String?
+  titular             String?
+  mail                String?
+  whatsapp            String?
+  compraMercaderia    Boolean  @default(false)
+  fechaPagoSolicitada DateTime?
+  notas               String?
+  fechaEstimadaPago   DateTime?
+
+  rg                  RG              @relation(fields: [rgId], references: [id], onDelete: Cascade)
+  proveedor           Proveedor?      @relation(fields: [proveedorId], references: [id])
+  cuenta              CuentaContable? @relation(fields: [cuentaId], references: [id])
+  centroCosto         CentroCosto?    @relation(fields: [centroCostoId], references: [id])
+}
