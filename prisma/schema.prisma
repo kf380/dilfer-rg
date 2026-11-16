@@ -99,7 +99,6 @@ model RG {
   area          String?
   estado        String    @default("Borrador")
   fechaRegistro DateTime  @default(now())
-  updatedAt     DateTime  @default(now()) @updatedAt
 
   empresa       Empresa   @relation(fields: [empresaId], references: [id])
   responsable   Usuario   @relation(fields: [responsableId], references: [id])
@@ -159,7 +158,6 @@ model RGLinea {
   notas                        String?
   fechaEstimadaPago            DateTime?
   centrosCostoDistribucion     Json?
-  updatedAt                    DateTime  @default(now()) @updatedAt
 
   rg                  RG              @relation(fields: [rgId], references: [id], onDelete: Cascade)
   proveedor           Proveedor?      @relation(fields: [proveedorId], references: [id])
