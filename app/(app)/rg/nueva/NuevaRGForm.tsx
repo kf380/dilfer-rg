@@ -465,7 +465,7 @@ function MultiCCSelector({
               value={d.porcentaje}
               onChange={(e) => handlePct(i, e.target.value)}
               className="input text-right text-sm px-1 shrink-0"
-              style={{ width: "72px" }}
+              style={{ width: "80px" }}
               placeholder="%"
             />
             <span className="text-xs text-gray-500 shrink-0">%</span>
@@ -619,6 +619,7 @@ function LineaCard({
                 <option>Efectivo</option>
                 <option>Transferencia</option>
                 <option>E-cheq</option>
+                <option>Débito automático</option>
               </select>
             </div>
 
