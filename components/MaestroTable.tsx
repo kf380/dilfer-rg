@@ -5,9 +5,10 @@ interface Props {
   headers: string[];
   rows: { id: string; fields: string[] }[];
   addHref: string;
+  editBasePath?: string;
 }
 
-export default function MaestroTable({ title, headers, rows, addHref }: Props) {
+export default function MaestroTable({ title, headers, rows, addHref, editBasePath }: Props) {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -45,7 +46,11 @@ export default function MaestroTable({ title, headers, rows, addHref }: Props) {
                     <td key={i} className="px-5 py-3 text-gray-700 max-w-xs truncate">{f}</td>
                   ))}
                   <td className="px-5 py-3 text-right">
-                    <span className="text-xs text-blue-600 hover:underline cursor-pointer">Editar</span>
+                    {editBasePath ? (
+                      <Link href={`${editBasePath}/${row.id}`} className="text-xs text-blue-600 hover:underline">Editar</Link>
+                    ) : (
+                      <span className="text-xs text-gray-300">Editar</span>
+                    )}
                   </td>
                 </tr>
               ))}

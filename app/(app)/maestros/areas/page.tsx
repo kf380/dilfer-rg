@@ -17,6 +17,7 @@ export default async function AreasPage() {
       headers={["Nombre"]}
       rows={rows}
       addHref="/maestros/areas/nueva"
+      editBasePath="/maestros/areas"
     />
   );
 }

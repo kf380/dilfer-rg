@@ -20,6 +20,7 @@ export default async function ProveedoresPage() {
       headers={["Código", "Razón Social", "CUIT", "Alias CBU", "Estado"]}
       rows={rows}
       addHref="/maestros/proveedores/nueva"
+      editBasePath="/maestros/proveedores"
     />
   );
 }

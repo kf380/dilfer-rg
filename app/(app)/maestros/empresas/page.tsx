@@ -20,6 +20,7 @@ export default async function EmpresasPage() {
       headers={["Código", "Razón Social", "CUIT", "Estado"]}
       rows={rows}
       addHref="/maestros/empresas/nueva"
+      editBasePath="/maestros/empresas"
     />
   );
 }

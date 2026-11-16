@@ -9,19 +9,34 @@ interface Proveedor { id: string; razonSocial: string; cbu?: string | null; alia
 interface Cuenta { id: string; codigo: string; nombre: string; descripcion?: string | null }
 interface Centro { id: string; nombre: string; descripcion?: string | null }
 
+interface CCDistribucion {
+  centroId: string;
+  nombre: string;
+  porcentaje: string;
+}
+
 interface Linea {
   proveedorId: string; proveedorTexto: string; comprobante: string; fechaComprobante: string;
-  detalleGasto: string; cuentaId: string; cuentaTexto: string; centroCostoId: string;
-  centroCostoTexto: string; monto: string; formaPago: string; cbu: string; alias: string;
+  detalleGasto: string; cuentaId: string; cuentaTexto: string;
+  centrosCostoDistribucion: CCDistribucion[];
+  monto: string; formaPago: string; cbu: string; alias: string;
   titular: string; mail: string; whatsapp: string; compraMercaderia: boolean;
-  fechaPagoSolicitada: string; notas: string; fechaEstimadaPago: string;
+  fechaPagoSolicitada: string; notas: string;
+}
+
+function calcFechaVencimiento(fechaComprobante: string): string {
+  const d = new Date(fechaComprobante + "T12:00:00");
+  d.setDate(d.getDate() + 7);
+  while (d.getDay() !== 2 && d.getDay() !== 5) d.setDate(d.getDate() + 1);
+  return d.toISOString().split("T")[0];
 }
 
 const lineaVacia = (): Linea => ({
   proveedorId: "", proveedorTexto: "", comprobante: "", fechaComprobante: "",
-  detalleGasto: "", cuentaId: "", cuentaTexto: "", centroCostoId: "", centroCostoTexto: "",
+  detalleGasto: "", cuentaId: "", cuentaTexto: "",
+  centrosCostoDistribucion: [],
   monto: "", formaPago: "Efectivo", cbu: "", alias: "", titular: "", mail: "", whatsapp: "",
-  compraMercaderia: false, fechaPagoSolicitada: "", notas: "", fechaEstimadaPago: "",
+  compraMercaderia: false, fechaPagoSolicitada: "", notas: "",
 });
 
 export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; user: any }) {
@@ -132,7 +147,11 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
   const total = lineas.reduce((s, l) => s + (parseFloat(l.monto) || 0), 0);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") e.preventDefault(); }}
+      className="space-y-6"
+    >
       {/* Cabecera */}
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <h2 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Datos generales</h2>
@@ -173,6 +192,7 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
             bankHighlighted={bankHighlight.has(i)}
             onToggle={() => setExpandida(expandida === i ? -1 : i)}
             onUpdate={(field, val) => updateLinea(i, field, val)}
+            onCCDistribucionChange={(d) => updateLinea(i, "centrosCostoDistribucion", d)}
             onProveedorSelect={(id) => handleProveedorSelect(i, id)}
             onDelete={() => eliminarLinea(i)}
             proveedores={proveedores}
@@ -318,19 +338,100 @@ function CuentaCombobox({
   );
 }
 
+// ─── Multi-selector de centros de costo ─────────────────────────────────────
+function MultiCCSelector({
+  centros, distribucion, montoTotal, onChange,
+}: {
+  centros: Centro[];
+  distribucion: CCDistribucion[];
+  montoTotal: number;
+  onChange: (d: CCDistribucion[]) => void;
+}) {
+  const totalPct = distribucion.reduce((s, d) => s + (parseFloat(d.porcentaje) || 0), 0);
+
+  function add() {
+    onChange([...distribucion, { centroId: "", nombre: "", porcentaje: "" }]);
+  }
+
+  function remove(i: number) {
+    onChange(distribucion.filter((_, idx) => idx !== i));
+  }
+
+  function handleSelect(i: number, centroId: string) {
+    const cc = centros.find((c) => c.id === centroId);
+    onChange(distribucion.map((d, idx) => idx !== i ? d : { ...d, centroId, nombre: cc?.nombre ?? "" }));
+  }
+
+  function handlePct(i: number, porcentaje: string) {
+    onChange(distribucion.map((d, idx) => idx !== i ? d : { ...d, porcentaje }));
+  }
+
+  return (
+    <div className="space-y-2">
+      {distribucion.map((d, i) => {
+        const pct = parseFloat(d.porcentaje) || 0;
+        const montoCC = montoTotal > 0 ? (pct / 100) * montoTotal : 0;
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <select
+              value={d.centroId}
+              onChange={(e) => handleSelect(i, e.target.value)}
+              className="input flex-1 text-sm"
+            >
+              <option value="">Seleccionar CC...</option>
+              {centros.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              value={d.porcentaje}
+              onChange={(e) => handlePct(i, e.target.value)}
+              className="input w-16 text-right text-sm"
+              placeholder="%"
+            />
+            <span className="text-xs text-gray-500 shrink-0">%</span>
+            <span className="text-xs text-gray-600 w-20 text-right font-medium shrink-0">
+              {montoCC > 0 ? formatCurrency(montoCC) : "—"}
+            </span>
+            <button type="button" onClick={() => remove(i)} className="text-red-400 hover:text-red-600 leading-none shrink-0 text-lg">
+              ×
+            </button>
+          </div>
+        );
+      })}
+      {distribucion.length > 0 && totalPct !== 100 && (
+        <p className={`text-xs ${totalPct > 100 ? "text-red-500" : "text-orange-500"}`}>
+          Total: {totalPct.toFixed(1)}% {totalPct > 100 ? "(excede 100%)" : "(debe sumar 100%)"}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={add}
+        className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+      >
+        + Agregar centro de costos
+      </button>
+    </div>
+  );
+}
+
 // ─── Tarjeta de línea ────────────────────────────────────────────────────────
 function LineaCard({
-  index, linea, expanded, bankHighlighted, onToggle, onUpdate, onProveedorSelect, onDelete, canDelete,
+  index, linea, expanded, bankHighlighted, onToggle, onUpdate, onCCDistribucionChange, onProveedorSelect, onDelete, canDelete,
   proveedores, cuentas, centros,
 }: {
   index: number; linea: Linea; expanded: boolean; bankHighlighted: boolean;
   onToggle: () => void; onUpdate: (f: keyof Linea, v: any) => void;
+  onCCDistribucionChange: (d: CCDistribucion[]) => void;
   onProveedorSelect: (id: string) => void; onDelete: () => void; canDelete: boolean;
   proveedores: Proveedor[]; cuentas: Cuenta[]; centros: Centro[];
 }) {
   const monto = parseFloat(linea.monto) || 0;
   const tieneProveedor = linea.proveedorTexto || linea.proveedorId;
   const selectedCuenta = cuentas.find((c) => c.id === linea.cuentaId);
+  const primerCC = linea.centrosCostoDistribucion[0];
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -347,6 +448,7 @@ function LineaCard({
             </p>
             <p className="text-xs text-gray-400 truncate">
               {linea.cuentaTexto || "Sin cuenta"} · {linea.formaPago}
+              {primerCC?.nombre && ` · ${primerCC.nombre}`}
             </p>
           </div>
         </div>
@@ -396,7 +498,16 @@ function LineaCard({
             {/* Fecha comprobante */}
             <div>
               <label className="label">Fecha comprobante</label>
-              <input type="date" value={linea.fechaComprobante} onChange={(e) => onUpdate("fechaComprobante", e.target.value)} className="input" />
+              <input
+                type="date"
+                value={linea.fechaComprobante}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onUpdate("fechaComprobante", val);
+                  if (val) onUpdate("fechaPagoSolicitada", calcFechaVencimiento(val));
+                }}
+                className="input"
+              />
             </div>
 
             {/* Detalle */}
@@ -411,7 +522,7 @@ function LineaCard({
               <input type="number" step="0.01" min="0" value={linea.monto} onChange={(e) => onUpdate("monto", e.target.value)} className="input" placeholder="0.00" required />
             </div>
 
-            {/* Cuenta contable — combobox buscable */}
+            {/* Cuenta contable */}
             <div className="md:col-span-2">
               <label className="label">Cuenta contable</label>
               <CuentaCombobox
@@ -424,23 +535,6 @@ function LineaCard({
               )}
             </div>
 
-            {/* Centro de costo */}
-            <div>
-              <label className="label">Centro de costos</label>
-              <select
-                value={linea.centroCostoId}
-                onChange={(e) => {
-                  const cc = centros.find((x) => x.id === e.target.value);
-                  onUpdate("centroCostoId", e.target.value);
-                  onUpdate("centroCostoTexto", cc?.nombre ?? "");
-                }}
-                className="input"
-              >
-                <option value="">Seleccionar...</option>
-                {centros.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-            </div>
-
             {/* Forma de pago */}
             <div>
               <label className="label">Forma de pago *</label>
@@ -451,22 +545,32 @@ function LineaCard({
               </select>
             </div>
 
-            {/* Fecha pago solicitada */}
+            {/* Fecha de vencimiento (auto-calc, editable) */}
             <div>
-              <label className="label">Fecha pago solicitada</label>
-              <input type="date" value={linea.fechaPagoSolicitada} onChange={(e) => onUpdate("fechaPagoSolicitada", e.target.value)} className="input" />
-            </div>
-
-            {/* Fecha estimada pago */}
-            <div>
-              <label className="label">Fecha estimada pago</label>
-              <input type="date" value={linea.fechaEstimadaPago} onChange={(e) => onUpdate("fechaEstimadaPago", e.target.value)} className="input" />
+              <label className="label">Fecha de vencimiento</label>
+              <input
+                type="date"
+                value={linea.fechaPagoSolicitada}
+                onChange={(e) => onUpdate("fechaPagoSolicitada", e.target.value)}
+                className="input"
+              />
             </div>
 
             {/* Compra mercadería */}
             <div className="flex items-center gap-2 pt-5">
               <input type="checkbox" id={`cm-${index}`} checked={linea.compraMercaderia} onChange={(e) => onUpdate("compraMercaderia", e.target.checked)} className="w-4 h-4 accent-blue-600" />
               <label htmlFor={`cm-${index}`} className="text-sm text-gray-700">Compra de mercadería</label>
+            </div>
+
+            {/* Centro de costos — multi */}
+            <div className="md:col-span-3">
+              <label className="label">Centro de costos</label>
+              <MultiCCSelector
+                centros={centros}
+                distribucion={linea.centrosCostoDistribucion}
+                montoTotal={parseFloat(linea.monto) || 0}
+                onChange={onCCDistribucionChange}
+              />
             </div>
 
             {/* Notas */}
@@ -476,7 +580,7 @@ function LineaCard({
             </div>
           </div>
 
-          {/* Datos bancarios — con highlight al auto-fill */}
+          {/* Datos bancarios */}
           {linea.formaPago === "Transferencia" && (
             <div
               className="border-t border-gray-100 pt-4 rounded-lg transition-all duration-300"

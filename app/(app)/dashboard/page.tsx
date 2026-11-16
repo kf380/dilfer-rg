@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const user = session!.user as any;
+  if (!session) redirect("/login");
+  const user = session.user as any;
 
   const isAdmin = user.rol === "Admin";
 

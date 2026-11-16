@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import Link from "next/link";
+import PrintButton from "@/components/PrintButton";
 
 export default async function RGDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,12 +34,7 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
           <span className="text-gray-300">|</span>
           <span className="text-xs font-mono bg-slate-100 text-slate-600 px-2 py-1 rounded">{rg.nroRG}</span>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="px-4 py-2 bg-blue-900 text-white text-sm font-medium rounded-lg hover:bg-blue-800 transition-colors no-print"
-        >
-          🖨️ Imprimir / PDF
-        </button>
+        <PrintButton />
       </div>
 
       {/* Documento imprimible */}
@@ -97,7 +93,9 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
                     {l.cuenta ? `${l.cuenta.codigo} - ${l.cuenta.nombre}` : l.cuentaTexto ?? "-"}
                   </td>
                   <td className="px-3 py-3 text-gray-600 text-xs">
-                    {l.centroCosto?.nombre ?? l.centroCostoTexto ?? "-"}
+                    {Array.isArray((l as any).centrosCostoDistribucion) && (l as any).centrosCostoDistribucion.length > 0
+                      ? (l as any).centrosCostoDistribucion.map((d: any) => `${d.nombre} (${d.porcentaje}%)`).join(" / ")
+                      : l.centroCosto?.nombre ?? l.centroCostoTexto ?? "-"}
                   </td>
                   <td className="px-3 py-3">
                     <div className="text-gray-700">{l.formaPago}</div>

@@ -23,6 +23,7 @@ export default async function CuentasPage() {
       headers={["Empresa", "Código", "Cuenta", "Áreas habilitadas"]}
       rows={rows}
       addHref="/maestros/cuentas/nueva"
+      editBasePath="/maestros/cuentas"
     />
   );
 }

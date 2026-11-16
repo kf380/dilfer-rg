@@ -23,6 +23,7 @@ export default async function CentrosCostoPage() {
       headers={["Empresa", "Nombre", "Descripción"]}
       rows={rows}
       addHref="/maestros/centros-costo/nueva"
+      editBasePath="/maestros/centros-costo"
     />
   );
 }

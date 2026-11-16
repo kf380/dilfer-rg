@@ -20,6 +20,7 @@ export default async function UsuariosPage() {
       headers={["Usuario", "Nombre", "Rol", "Área", "Estado"]}
       rows={rows}
       addHref="/maestros/usuarios/nueva"
+      editBasePath="/maestros/usuarios"
     />
   );
 }

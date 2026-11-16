@@ -82,13 +82,14 @@ async function main() {
   }
   console.log("✓ Usuarios");
 
-  // Proveedores (from CSV, first 50 real ones)
+  // Proveedores — limpia y recarga desde CSV para evitar duplicados
   try {
+    await prisma.rGLinea.updateMany({ where: { proveedorId: { not: null } }, data: { proveedorId: null } });
+    await prisma.proveedor.deleteMany({});
     const provCSV = parseCSV(path.join(CSV_DIR, "Proveedores.csv"));
     let count = 0;
     for (const row of provCSV) {
       if (!row["ID_Proveedor"] || !row["Razon_Social"] || row["Razon_Social"].startsWith("ID_")) continue;
-      if (count >= 50) break;
       await prisma.proveedor.upsert({
         where: { codigo: row["ID_Proveedor"] },
         update: {},
@@ -140,8 +141,10 @@ async function main() {
     console.log("⚠ PlanCuentas CSV error:", e);
   }
 
-  // Centros de Costo
+  // Centros de Costo — limpia y recarga para evitar duplicados
   try {
+    await prisma.rGLinea.updateMany({ where: { centroCostoId: { not: null } }, data: { centroCostoId: null } });
+    await prisma.centroCosto.deleteMany({});
     const ccCSV = parseCSV(path.join(CSV_DIR, "CentrosCosto.csv"));
     let count = 0;
     for (const row of ccCSV) {
@@ -155,7 +158,7 @@ async function main() {
           nombre: row["Centro_Costos"],
           descripcion: row["Descripcion"] || null,
         },
-      }).catch(() => {});
+      });
       count++;
     }
     console.log(`✓ CentrosCosto (${count})`);
