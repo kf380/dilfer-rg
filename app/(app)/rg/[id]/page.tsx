@@ -4,10 +4,13 @@ import { notFound } from "next/navigation";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
+import EstadoActions from "@/components/EstadoActions";
+import AdjuntosPanel from "@/components/AdjuntosPanel";
 
 export default async function RGDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const session = await auth();
+  const user = session!.user as any;
 
   const rg = await prisma.rG.findUnique({
     where: { id },
@@ -18,12 +21,17 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
         orderBy: { linea: "asc" },
         include: { cuenta: true, centroCosto: true, proveedor: true },
       },
+      historial: {
+        include: { usuario: { select: { id: true, nombreCompleto: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
   if (!rg) notFound();
 
   const total = rg.lineas.reduce((s, l) => s + l.monto, 0);
+  const canEdit = rg.estado === "Borrador" && (user.rol === "Admin" || rg.responsableId === user.id);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -37,18 +45,34 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
           <span className="text-xs font-mono bg-blue-50 text-blue-700 border border-blue-100 px-2.5 py-1 rounded-md font-semibold">
             {rg.nroRG}
           </span>
+          {canEdit && (
+            <Link
+              href={`/rg/${id}/editar`}
+              className="text-xs px-3 py-1.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Editar
+            </Link>
+          )}
         </div>
         <PrintButton />
       </div>
 
+      {/* Estado + acciones */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4 no-print">
+        <EstadoActions
+          rgId={id}
+          estado={rg.estado}
+          userRol={user.rol}
+          userId={user.id}
+          responsableId={rg.responsableId}
+        />
+      </div>
+
       {/* Documento */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden print:shadow-none print:rounded-none print:border-none">
-
-        {/* Franja superior azul */}
         <div className="h-1.5 bg-blue-900 print:h-1" />
 
         <div className="p-8 print:p-6">
-
           {/* Header */}
           <div className="flex items-start justify-between mb-7 pb-6 border-b border-gray-100">
             <div>
@@ -176,9 +200,41 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
               <div className="w-52 border-t-2 border-gray-300 pt-1.5 text-xs text-gray-400 tracking-wide">FIRMA Y SELLO</div>
             </div>
           </div>
-
         </div>
       </div>
+
+      {/* Adjuntos */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4 no-print">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">Adjuntos</h3>
+        <AdjuntosPanel rgId={id} estado={rg.estado} />
+      </div>
+
+      {/* Historial */}
+      {rg.historial.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-5 mt-4 no-print">
+          <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">Historial</h3>
+          <ol className="relative border-l border-gray-200 space-y-4 ml-3">
+            {rg.historial.map((h) => (
+              <li key={h.id} className="pl-5 relative">
+                <span className="absolute -left-1.5 top-1 w-3 h-3 rounded-full bg-blue-100 border-2 border-blue-400" />
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-sm font-semibold text-gray-800">{h.usuario.nombreCompleto}</span>
+                  <span className="text-sm text-gray-500">{h.accion} esta rendición</span>
+                  {h.estadoAnterior && h.estadoNuevo && h.estadoAnterior !== h.estadoNuevo && (
+                    <span className="text-xs text-gray-400">
+                      {h.estadoAnterior} → {h.estadoNuevo}
+                    </span>
+                  )}
+                  <span className="text-xs text-gray-400 ml-auto">{formatDate(h.createdAt)}</span>
+                </div>
+                {h.comentario && (
+                  <p className="text-sm text-gray-500 mt-0.5 italic">"{h.comentario}"</p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

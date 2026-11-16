@@ -38,6 +38,7 @@ model Usuario {
 
   empresa        Empresa? @relation(fields: [empresaId], references: [id])
   rgs            RG[]
+  historial      RGHistorial[]
 }
 
 model Area {
@@ -96,11 +97,41 @@ model RG {
   fecha         DateTime
   responsableId String
   area          String?
+  estado        String    @default("Borrador")
   fechaRegistro DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   empresa       Empresa   @relation(fields: [empresaId], references: [id])
   responsable   Usuario   @relation(fields: [responsableId], references: [id])
   lineas        RGLinea[]
+  historial     RGHistorial[]
+  adjuntos      RGAdjunto[]
+}
+
+model RGHistorial {
+  id             String   @id @default(cuid())
+  rgId           String
+  usuarioId      String
+  accion         String
+  estadoAnterior String?
+  estadoNuevo    String?
+  comentario     String?
+  createdAt      DateTime @default(now())
+
+  rg             RG       @relation(fields: [rgId], references: [id], onDelete: Cascade)
+  usuario        Usuario  @relation(fields: [usuarioId], references: [id])
+}
+
+model RGAdjunto {
+  id         String   @id @default(cuid())
+  rgId       String
+  nombre     String
+  mimeType   String
+  tamano     Int
+  contenido  Bytes
+  createdAt  DateTime @default(now())
+
+  rg         RG       @relation(fields: [rgId], references: [id], onDelete: Cascade)
 }
 
 model RGLinea {
@@ -128,6 +159,7 @@ model RGLinea {
   notas                        String?
   fechaEstimadaPago            DateTime?
   centrosCostoDistribucion     Json?
+  updatedAt                    DateTime  @updatedAt
 
   rg                  RG              @relation(fields: [rgId], references: [id], onDelete: Cascade)
   proveedor           Proveedor?      @relation(fields: [proveedorId], references: [id])

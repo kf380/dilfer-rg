@@ -17,7 +17,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(empresas);
 
     case "proveedores":
-      const proveedores = await prisma.proveedor.findMany({ where: { activo: true }, orderBy: { razonSocial: "asc" } });
+      const q = searchParams.get("q") ?? "";
+      const proveedores = await prisma.proveedor.findMany({
+        where: {
+          activo: true,
+          ...(q ? { razonSocial: { contains: q, mode: "insensitive" } } : {}),
+        },
+        orderBy: { razonSocial: "asc" },
+        take: 300,
+      });
       return NextResponse.json(proveedores);
 
     case "cuentas":
@@ -38,9 +46,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(filtered);
 
     case "centros":
-      const centros = await prisma.centroCosto.findMany({
-        orderBy: { nombre: "asc" },
-      });
+      if (empresaId) {
+        const centrosFiltrados = await prisma.centroCosto.findMany({
+          where: { OR: [{ empresaId }, { empresaId: null }] },
+          orderBy: { nombre: "asc" },
+        });
+        if (centrosFiltrados.length > 0) return NextResponse.json(centrosFiltrados);
+      }
+      const centros = await prisma.centroCosto.findMany({ orderBy: { nombre: "asc" } });
       return NextResponse.json(centros);
 
     case "areas":

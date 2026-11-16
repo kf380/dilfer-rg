@@ -1,7 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildNroRG } from "@/lib/utils";
+
+const CCDistribucionSchema = z.object({
+  centroId: z.string(),
+  nombre: z.string(),
+  porcentaje: z.string(),
+});
+
+const LineaSchema = z.object({
+  proveedorId: z.string().optional(),
+  proveedorTexto: z.string().optional(),
+  comprobante: z.string().optional(),
+  fechaComprobante: z.string().optional(),
+  detalleGasto: z.string().min(1, "Detalle requerido"),
+  cuentaId: z.string().optional(),
+  cuentaTexto: z.string().optional(),
+  centrosCostoDistribucion: z.array(CCDistribucionSchema).optional(),
+  monto: z.number().positive("Monto debe ser positivo"),
+  formaPago: z.enum(["Efectivo", "Transferencia", "E-cheq", "Débito automático"]),
+  cbu: z.string().optional(),
+  alias: z.string().optional(),
+  titular: z.string().optional(),
+  mail: z.string().optional(),
+  whatsapp: z.string().optional(),
+  compraMercaderia: z.boolean().optional(),
+  fechaPagoSolicitada: z.string().optional(),
+  notas: z.string().optional(),
+});
+
+const RGPostSchema = z.object({
+  empresaId: z.string().min(1),
+  fecha: z.string().min(1),
+  area: z.string().optional(),
+  lineas: z.array(LineaSchema).min(1, "Al menos una línea requerida"),
+});
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -13,9 +48,21 @@ export async function GET(req: NextRequest) {
   const page = parseInt(searchParams.get("page") ?? "1");
   const limit = 20;
 
-  const where = user.rol === "Admin"
+  const estado = searchParams.get("estado");
+  const desde = searchParams.get("desde");
+  const hasta = searchParams.get("hasta");
+
+  const where: any = user.rol === "Admin"
     ? empresaId ? { empresaId } : {}
     : { responsableId: user.id };
+
+  if (estado) where.estado = estado;
+  if (desde || hasta) {
+    where.fecha = {
+      ...(desde ? { gte: new Date(desde) } : {}),
+      ...(hasta ? { lte: new Date(hasta + "T23:59:59.999Z") } : {}),
+    };
+  }
 
   const [rgs, total] = await Promise.all([
     prisma.rG.findMany({
@@ -36,55 +83,72 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = session.user as any;
 
-  const body = await req.json();
-  const { empresaId, fecha, area, lineas } = body;
-
-  if (!empresaId || !fecha || !lineas?.length) {
-    return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+  const raw = await req.json();
+  const parsed = RGPostSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Datos inválidos" },
+      { status: 400 }
+    );
   }
 
-  // Auto-number: increment per empresa
-  const empresa = await prisma.empresa.update({
-    where: { id: empresaId },
-    data: { ultimoNumero: { increment: 1 } },
-  });
+  const { empresaId, fecha, area, lineas } = parsed.data;
 
-  const nroRG = buildNroRG(empresa.razonSocial, empresa.ultimoNumero);
+  // Non-admin users can only create RGs for their own company
+  if (user.rol !== "Admin" && user.empresaId && user.empresaId !== empresaId) {
+    return NextResponse.json({ error: "No autorizado para esta empresa" }, { status: 403 });
+  }
 
-  const rg = await prisma.rG.create({
-    data: {
-      nroRG,
-      empresaId,
-      fecha: new Date(fecha),
-      responsableId: user.id,
-      area: area || user.area,
-      lineas: {
-        create: lineas.map((l: any, i: number) => ({
-          linea: i + 1,
-          proveedorId: l.proveedorId || null,
-          proveedorTexto: l.proveedorTexto || null,
-          comprobante: l.comprobante || null,
-          fechaComprobante: l.fechaComprobante ? new Date(l.fechaComprobante) : null,
-          detalleGasto: l.detalleGasto,
-          cuentaId: l.cuentaId || null,
-          cuentaTexto: l.cuentaTexto || null,
-          centroCostoId: l.centrosCostoDistribucion?.[0]?.centroId || null,
-          centroCostoTexto: l.centrosCostoDistribucion?.[0]?.nombre || null,
-          centrosCostoDistribucion: l.centrosCostoDistribucion?.length ? l.centrosCostoDistribucion : undefined,
-          monto: parseFloat(l.monto),
-          formaPago: l.formaPago,
-          cbu: l.cbu || null,
-          alias: l.alias || null,
-          titular: l.titular || null,
-          mail: l.mail || null,
-          whatsapp: l.whatsapp || null,
-          compraMercaderia: l.compraMercaderia ?? false,
-          fechaPagoSolicitada: l.fechaPagoSolicitada ? new Date(l.fechaPagoSolicitada) : null,
-          notas: l.notas || null,
-        })),
+  // Atomic: increment counter + create RG in one transaction
+  const rg = await prisma.$transaction(async (tx) => {
+    const empresa = await tx.empresa.update({
+      where: { id: empresaId },
+      data: { ultimoNumero: { increment: 1 } },
+    });
+
+    const nroRG = buildNroRG(empresa.razonSocial, empresa.ultimoNumero);
+
+    const rg = await tx.rG.create({
+      data: {
+        nroRG,
+        empresaId,
+        fecha: new Date(fecha),
+        responsableId: user.id,
+        area: area || user.area,
+        lineas: {
+          create: lineas.map((l, i) => ({
+            linea: i + 1,
+            proveedorId: l.proveedorId || null,
+            proveedorTexto: l.proveedorTexto || null,
+            comprobante: l.comprobante || null,
+            fechaComprobante: l.fechaComprobante ? new Date(l.fechaComprobante) : null,
+            detalleGasto: l.detalleGasto,
+            cuentaId: l.cuentaId || null,
+            cuentaTexto: l.cuentaTexto || null,
+            centroCostoId: l.centrosCostoDistribucion?.[0]?.centroId || null,
+            centroCostoTexto: l.centrosCostoDistribucion?.[0]?.nombre || null,
+            centrosCostoDistribucion: l.centrosCostoDistribucion?.length ? l.centrosCostoDistribucion : undefined,
+            monto: l.monto,
+            formaPago: l.formaPago,
+            cbu: l.cbu || null,
+            alias: l.alias || null,
+            titular: l.titular || null,
+            mail: l.mail || null,
+            whatsapp: l.whatsapp || null,
+            compraMercaderia: l.compraMercaderia ?? false,
+            fechaPagoSolicitada: l.fechaPagoSolicitada ? new Date(l.fechaPagoSolicitada) : null,
+            notas: l.notas || null,
+          })),
+        },
       },
-    },
-    include: { empresa: true, lineas: true },
+      include: { empresa: true, lineas: true },
+    });
+
+    await tx.rGHistorial.create({
+      data: { rgId: rg.id, usuarioId: user.id, accion: "creó", estadoAnterior: null, estadoNuevo: "Borrador" },
+    });
+
+    return rg;
   });
 
   return NextResponse.json({ rg });

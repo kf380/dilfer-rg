@@ -16,7 +16,9 @@ interface CCDistribucion {
 }
 
 interface Linea {
-  proveedorId: string; proveedorTexto: string; comprobante: string; fechaComprobante: string;
+  proveedorId: string; proveedorTexto: string;
+  tipoComprobante: string; letraComprobante: string; nroComprobante: string;
+  fechaComprobante: string;
   detalleGasto: string; cuentaId: string; cuentaTexto: string;
   centrosCostoDistribucion: CCDistribucion[];
   monto: string; formaPago: string; cbu: string; alias: string;
@@ -32,21 +34,34 @@ function calcFechaVencimiento(fechaComprobante: string): string {
 }
 
 const lineaVacia = (): Linea => ({
-  proveedorId: "", proveedorTexto: "", comprobante: "", fechaComprobante: "",
+  proveedorId: "", proveedorTexto: "",
+  tipoComprobante: "", letraComprobante: "", nroComprobante: "",
+  fechaComprobante: "",
   detalleGasto: "", cuentaId: "", cuentaTexto: "",
   centrosCostoDistribucion: [],
   monto: "", formaPago: "Efectivo", cbu: "", alias: "", titular: "", mail: "", whatsapp: "",
   compraMercaderia: false, fechaPagoSolicitada: "", notas: "",
 });
 
-export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; user: any }) {
+interface InitialRG {
+  id: string; nroRG: string; fecha: string; area: string; empresaId: string; lineas: Linea[];
+}
+
+export default function NuevaRGForm({
+  empresas, user, mode = "crear", rgId, initialRG,
+}: {
+  empresas: Empresa[]; user: any;
+  mode?: "crear" | "editar";
+  rgId?: string;
+  initialRG?: InitialRG;
+}) {
   const router = useRouter();
   const today = new Date().toISOString().split("T")[0];
 
-  const [empresaId, setEmpresaId] = useState(empresas[0]?.id ?? "");
-  const [fecha, setFecha] = useState(today);
-  const [area, setArea] = useState(user.area ?? "");
-  const [lineas, setLineas] = useState<Linea[]>([lineaVacia()]);
+  const [empresaId, setEmpresaId] = useState(initialRG?.empresaId ?? empresas[0]?.id ?? "");
+  const [fecha, setFecha] = useState(initialRG?.fecha ?? today);
+  const [area, setArea] = useState(initialRG?.area ?? user.area ?? "");
+  const [lineas, setLineas] = useState<Linea[]>(initialRG?.lineas ?? [lineaVacia()]);
   const [expandida, setExpandida] = useState<number>(0);
   const [bankHighlight, setBankHighlight] = useState<Set<number>>(new Set());
 
@@ -127,17 +142,21 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
     }
     setSubmitting(true);
     try {
-      const res = await fetch("/api/rg", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          empresaId, fecha, area,
-          lineas: lineas.map((l) => ({ ...l, monto: parseFloat(l.monto) || 0 })),
-        }),
-      });
+      const url = mode === "editar" ? `/api/rg/${rgId}` : "/api/rg";
+      const method = mode === "editar" ? "PUT" : "POST";
+      const body = {
+        ...(mode !== "editar" ? { empresaId } : {}),
+        fecha, area,
+        lineas: lineas.map((l) => ({
+          ...l,
+          monto: parseFloat(l.monto) || 0,
+          comprobante: [l.tipoComprobante, l.letraComprobante, l.nroComprobante].filter(Boolean).join(" ") || "",
+        })),
+      };
+      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Error al guardar");
-      router.push(`/rg/${data.rg.id}`);
+      router.push(`/rg/${mode === "editar" ? rgId : data.rg.id}`);
     } catch (e: any) {
       setError(e.message);
       setSubmitting(false);
@@ -158,9 +177,13 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="label">Empresa</label>
-            <select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)} className="input">
-              {empresas.map((e) => <option key={e.id} value={e.id}>{e.razonSocial}</option>)}
-            </select>
+            {mode === "editar" ? (
+              <input value={empresas.find((e) => e.id === empresaId)?.razonSocial ?? ""} disabled className="input bg-gray-50 text-gray-500" />
+            ) : (
+              <select value={empresaId} onChange={(e) => setEmpresaId(e.target.value)} className="input">
+                {empresas.map((e) => <option key={e.id} value={e.id}>{e.razonSocial}</option>)}
+              </select>
+            )}
           </div>
           <div>
             <label className="label">Fecha</label>
@@ -176,7 +199,11 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
           </div>
           <div>
             <label className="label">N° de RG</label>
-            <input value="(se asigna al guardar)" disabled className="input bg-gray-50 text-gray-400 cursor-not-allowed text-sm italic" />
+            {mode === "editar" ? (
+              <input value={initialRG?.nroRG ?? ""} disabled className="input bg-gray-50 text-gray-700 font-mono text-sm" />
+            ) : (
+              <input value="(se asigna al guardar)" disabled className="input bg-gray-50 text-gray-400 cursor-not-allowed text-sm italic" />
+            )}
           </div>
         </div>
       </div>
@@ -227,7 +254,7 @@ export default function NuevaRGForm({ empresas, user }: { empresas: Empresa[]; u
             disabled={submitting}
             className="px-6 py-2 bg-blue-900 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-60 transition-colors"
           >
-            {submitting ? "Guardando..." : "Guardar Rendición"}
+            {submitting ? "Guardando..." : mode === "editar" ? "Guardar cambios" : "Guardar Rendición"}
           </button>
         </div>
       </div>
@@ -566,10 +593,46 @@ function LineaCard({
               )}
             </div>
 
-            {/* Comprobante */}
+            {/* Comprobante: tipo + letra + número */}
             <div>
-              <label className="label">N° Comprobante</label>
-              <input value={linea.comprobante} onChange={(e) => onUpdate("comprobante", e.target.value)} className="input" placeholder="Ej: FA-0001-00123" />
+              <label className="label">Comprobante</label>
+              <div className="flex gap-1.5">
+                <select
+                  value={linea.tipoComprobante}
+                  onChange={(e) => onUpdate("tipoComprobante", e.target.value)}
+                  className="input"
+                  style={{ width: "120px", flexShrink: 0 }}
+                >
+                  <option value="">Tipo</option>
+                  <option>Factura</option>
+                  <option>Recibo</option>
+                  <option>Ticket</option>
+                  <option>Remito</option>
+                  <option>Nota débito</option>
+                  <option>Nota crédito</option>
+                  <option>Otro</option>
+                </select>
+                <select
+                  value={linea.letraComprobante}
+                  onChange={(e) => onUpdate("letraComprobante", e.target.value)}
+                  className="input"
+                  style={{ width: "60px", flexShrink: 0 }}
+                >
+                  <option value="">—</option>
+                  <option>A</option>
+                  <option>B</option>
+                  <option>C</option>
+                  <option>X</option>
+                  <option>E</option>
+                  <option>M</option>
+                </select>
+                <input
+                  value={linea.nroComprobante}
+                  onChange={(e) => onUpdate("nroComprobante", e.target.value)}
+                  className="input flex-1"
+                  placeholder="0001-00123456"
+                />
+              </div>
             </div>
 
             {/* Fecha comprobante */}
