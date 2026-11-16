@@ -19,8 +19,8 @@
 }
 
 @page {
-  margin: 1.2cm;
-  size: A4;
+  margin: 1cm;
+  size: A4 landscape;
 }
 
 .print-only { display: none; }

@@ -469,8 +469,8 @@ function MultiCCSelector({
               placeholder="%"
             />
             <span className="text-xs text-gray-500 shrink-0">%</span>
-            <span className="text-xs text-gray-600 shrink-0 text-right font-medium" style={{ width: "80px" }}>
-              {montoCC > 0 ? formatCurrency(montoCC) : "—"}
+            <span className="text-xs text-gray-600 shrink-0 text-right font-medium" style={{ width: "88px" }}>
+              {montoTotal > 0 && d.porcentaje !== "" ? formatCurrency(montoCC) : "—"}
             </span>
             <button type="button" onClick={() => remove(i)} className="text-red-400 hover:text-red-600 leading-none shrink-0 text-lg">
               ×
