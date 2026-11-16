@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
 export default async function RegistroPage({ searchParams }: { searchParams: Promise<{ empresaId?: string; page?: string }> }) {
   const session = await auth();
-  const user = session!.user as any;
+  if (!session) redirect("/login");
+  const user = session.user as any;
   const isAdmin = user.rol === "Admin";
   const sp = await searchParams;
   const empresaId = sp.empresaId;
