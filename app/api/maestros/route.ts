@@ -38,9 +38,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(filtered);
 
     case "centros":
-      if (!empresaId) return NextResponse.json([]);
       const centros = await prisma.centroCosto.findMany({
-        where: { OR: [{ empresaId }, { empresaId: null }] },
         orderBy: { nombre: "asc" },
       });
       return NextResponse.json(centros);
