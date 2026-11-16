@@ -1,7 +1,4 @@
 Empresa,Centro_Costos,Descripcion,"Un centro de costos por fila. Empresa debe ser igual a la hoja Empresas (o TODAS para que aparezca en todas). Si no hay lista, en el formulario se puede escribir libremente."
-NEXON SA,Prueba1,Prueba numero 1,
-NEXON SA,Prueba2,Prueba numero 2,
-TODAS,PruebaTodas,La cuestion es…,
 NEXON SA,110-CC ADMINISTRACION,,
 NEXON SA,111-CC DESAROLLO ESTRATEGICO,,
 NEXON SA,112-CC COMPRAS,,
