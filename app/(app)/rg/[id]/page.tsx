@@ -94,10 +94,21 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
                   </td>
                   <td className="px-3 py-3 text-gray-600 text-xs">
                     {Array.isArray((l as any).centrosCostoDistribucion) && (l as any).centrosCostoDistribucion.length > 0
-                      ? (l as any).centrosCostoDistribucion.map((d: any) => {
-                          const mCC = (parseFloat(d.porcentaje) / 100) * l.monto;
-                          return `${d.nombre} (${d.porcentaje}%) = ${formatCurrency(mCC)}`;
-                        }).join(" / ")
+                      ? (
+                        <div className="space-y-1">
+                          {(l as any).centrosCostoDistribucion.map((d: any, di: number) => {
+                            const mCC = (parseFloat(d.porcentaje) / 100) * l.monto;
+                            return (
+                              <div key={di} className="flex items-center gap-1.5">
+                                <span className="text-gray-500 font-medium">{d.porcentaje}%</span>
+                                <span className="text-gray-400">·</span>
+                                <span>{d.nombre}</span>
+                                <span className="text-gray-400 ml-auto pl-2 font-medium text-gray-700">{formatCurrency(mCC)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )
                       : l.centroCosto?.nombre ?? l.centroCostoTexto ?? "-"}
                   </td>
                   <td className="px-3 py-3">
