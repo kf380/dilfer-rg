@@ -447,14 +447,16 @@ function MultiCCSelector({
         const pct = parseFloat(d.porcentaje) || 0;
         const montoCC = montoTotal > 0 ? (pct / 100) * montoTotal : 0;
         return (
-          <div key={i} className="flex items-center gap-2">
-            <CCCombobox
-              centros={centros}
-              value={d.centroId}
-              onChange={(centroId, nombre) =>
-                onChange(distribucion.map((x, idx) => idx !== i ? x : { ...x, centroId, nombre }))
-              }
-            />
+          <div key={i} className="flex items-center gap-2 min-w-0">
+            <div className="flex-1 min-w-0">
+              <CCCombobox
+                centros={centros}
+                value={d.centroId}
+                onChange={(centroId, nombre) =>
+                  onChange(distribucion.map((x, idx) => idx !== i ? x : { ...x, centroId, nombre }))
+                }
+              />
+            </div>
             <input
               type="number"
               min="0"
@@ -462,11 +464,12 @@ function MultiCCSelector({
               step="1"
               value={d.porcentaje}
               onChange={(e) => handlePct(i, e.target.value)}
-              className="input w-10 text-right text-sm px-1 shrink-0"
+              className="input text-right text-sm px-1 shrink-0"
+              style={{ width: "56px" }}
               placeholder="%"
             />
             <span className="text-xs text-gray-500 shrink-0">%</span>
-            <span className="text-xs text-gray-600 w-20 text-right font-medium shrink-0">
+            <span className="text-xs text-gray-600 shrink-0 text-right font-medium" style={{ width: "80px" }}>
               {montoCC > 0 ? formatCurrency(montoCC) : "—"}
             </span>
             <button type="button" onClick={() => remove(i)} className="text-red-400 hover:text-red-600 leading-none shrink-0 text-lg">
