@@ -385,10 +385,10 @@ function MultiCCSelector({
               type="number"
               min="0"
               max="100"
-              step="0.01"
+              step="1"
               value={d.porcentaje}
               onChange={(e) => handlePct(i, e.target.value)}
-              className="input w-16 text-right text-sm"
+              className="input w-10 text-right text-sm px-1"
               placeholder="%"
             />
             <span className="text-xs text-gray-500 shrink-0">%</span>
