@@ -338,6 +338,86 @@ function CuentaCombobox({
   );
 }
 
+// ─── Combobox buscable para un centro de costo ──────────────────────────────
+function CCCombobox({
+  centros, value, onChange,
+}: {
+  centros: Centro[];
+  value: string;
+  onChange: (centroId: string, nombre: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = centros.find((c) => c.id === value);
+  const filtered = query.trim()
+    ? centros.filter((c) => c.nombre.toLowerCase().includes(query.toLowerCase())).slice(0, 30)
+    : centros.slice(0, 30);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative flex-1">
+      <div
+        className={`input flex items-center justify-between cursor-pointer text-sm ${open ? "border-blue-500 ring-2 ring-blue-100" : ""}`}
+        onClick={() => setOpen(!open)}
+      >
+        {selected ? (
+          <span className="text-gray-800 truncate">{selected.nombre}</span>
+        ) : (
+          <span className="text-gray-400">Buscar centro...</span>
+        )}
+        {selected ? (
+          <button type="button" onClick={(e) => { e.stopPropagation(); onChange("", ""); setQuery(""); setOpen(true); }} className="ml-2 text-gray-400 hover:text-gray-600 shrink-0">×</button>
+        ) : (
+          <span className="text-gray-400 text-xs shrink-0">▼</span>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded focus:outline-none focus:border-blue-400"
+              placeholder="Buscar por nombre..."
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+          <ul className="max-h-48 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <li className="px-3 py-2 text-sm text-gray-400">Sin resultados</li>
+            ) : (
+              filtered.map((c) => (
+                <li
+                  key={c.id}
+                  onMouseDown={() => { onChange(c.id, c.nombre); setQuery(""); setOpen(false); }}
+                  className={`px-3 py-2 text-sm cursor-pointer hover:bg-blue-50 ${c.id === value ? "bg-blue-50 text-blue-700 font-medium" : "text-gray-700"}`}
+                >
+                  {c.nombre}
+                </li>
+              ))
+            )}
+          </ul>
+          {!query && centros.length > 30 && (
+            <p className="px-3 py-1.5 text-xs text-gray-400 border-t border-gray-100">
+              Mostrando 30 de {centros.length}. Escribí para filtrar.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Multi-selector de centros de costo ─────────────────────────────────────
 function MultiCCSelector({
   centros, distribucion, montoTotal, onChange,
@@ -357,11 +437,6 @@ function MultiCCSelector({
     onChange(distribucion.filter((_, idx) => idx !== i));
   }
 
-  function handleSelect(i: number, centroId: string) {
-    const cc = centros.find((c) => c.id === centroId);
-    onChange(distribucion.map((d, idx) => idx !== i ? d : { ...d, centroId, nombre: cc?.nombre ?? "" }));
-  }
-
   function handlePct(i: number, porcentaje: string) {
     onChange(distribucion.map((d, idx) => idx !== i ? d : { ...d, porcentaje }));
   }
@@ -373,14 +448,13 @@ function MultiCCSelector({
         const montoCC = montoTotal > 0 ? (pct / 100) * montoTotal : 0;
         return (
           <div key={i} className="flex items-center gap-2">
-            <select
+            <CCCombobox
+              centros={centros}
               value={d.centroId}
-              onChange={(e) => handleSelect(i, e.target.value)}
-              className="input flex-1 text-sm"
-            >
-              <option value="">Seleccionar CC...</option>
-              {centros.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
+              onChange={(centroId, nombre) =>
+                onChange(distribucion.map((x, idx) => idx !== i ? x : { ...x, centroId, nombre }))
+              }
+            />
             <input
               type="number"
               min="0"
@@ -388,7 +462,7 @@ function MultiCCSelector({
               step="1"
               value={d.porcentaje}
               onChange={(e) => handlePct(i, e.target.value)}
-              className="input w-10 text-right text-sm px-1"
+              className="input w-10 text-right text-sm px-1 shrink-0"
               placeholder="%"
             />
             <span className="text-xs text-gray-500 shrink-0">%</span>
