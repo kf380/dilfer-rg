@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { notFound } from "next/navigation";
-import { formatDate, formatCurrency } from "@/lib/utils";
+import { formatDate, formatDateTime, formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 import PrintButton from "@/components/PrintButton";
 import EstadoActions from "@/components/EstadoActions";
@@ -31,7 +31,7 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
   if (!rg) notFound();
 
   const total = rg.lineas.reduce((s, l) => s + l.monto, 0);
-  const canEdit = rg.estado === "Borrador" && (user.rol === "Admin" || rg.responsableId === user.id);
+  const canEdit = (rg.estado === "Borrador" || rg.estado === "En Revisión") && (user.rol === "Admin" || rg.responsableId === user.id);
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -91,7 +91,7 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
             <MetaCell label="Responsable" value={rg.responsable.nombreCompleto} first />
             <MetaCell label="Área" value={rg.area ?? "-"} />
             <MetaCell label="Empresa" value={rg.empresa.razonSocial} />
-            <MetaCell label="Fecha registro" value={formatDate(rg.fechaRegistro)} />
+            <MetaCell label="Fecha registro" value={formatDateTime(rg.fechaRegistro)} />
           </div>
 
           {/* Tabla */}
@@ -180,7 +180,7 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
               <tfoot>
                 <tr className="bg-blue-900 text-white">
                   <td colSpan={7} className="px-4 py-3 font-semibold text-right text-sm tracking-wide">
-                    TOTAL RENDIDO — {rg.lineas.length} comprobante{rg.lineas.length !== 1 ? "s" : ""}
+                    IMPORTE TOTAL — {rg.lineas.length} comprobante{rg.lineas.length !== 1 ? "s" : ""}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-base">{formatCurrency(total)}</td>
                 </tr>
@@ -225,7 +225,7 @@ export default async function RGDetailPage({ params }: { params: Promise<{ id: s
                       {h.estadoAnterior} → {h.estadoNuevo}
                     </span>
                   )}
-                  <span className="text-xs text-gray-400 ml-auto">{formatDate(h.createdAt)}</span>
+                  <span className="text-xs text-gray-400 ml-auto">{formatDateTime(h.createdAt)}</span>
                 </div>
                 {h.comentario && (
                   <p className="text-sm text-gray-500 mt-0.5 italic">"{h.comentario}"</p>

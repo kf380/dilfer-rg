@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/lib/utils";
 
 interface Empresa { id: string; razonSocial: string }
-interface Proveedor { id: string; razonSocial: string; cbu?: string | null; alias?: string | null; titularCuenta?: string | null; mailContacto?: string | null; whatsapp?: string | null }
+interface Proveedor {
+  id: string; razonSocial: string; cuit?: string | null;
+  cbu?: string | null; alias?: string | null; titularCuenta?: string | null;
+  mailContacto?: string | null; whatsapp?: string | null;
+}
 interface Cuenta { id: string; codigo: string; nombre: string; descripcion?: string | null }
 interface Centro { id: string; nombre: string; descripcion?: string | null }
 
@@ -19,6 +23,7 @@ interface Linea {
   proveedorId: string; proveedorTexto: string;
   tipoComprobante: string; letraComprobante: string; nroComprobante: string;
   fechaComprobante: string;
+  motivoAtraso: string;
   detalleGasto: string; cuentaId: string; cuentaTexto: string;
   centrosCostoDistribucion: CCDistribucion[];
   monto: string; formaPago: string; cbu: string; alias: string;
@@ -37,6 +42,7 @@ const lineaVacia = (): Linea => ({
   proveedorId: "", proveedorTexto: "",
   tipoComprobante: "", letraComprobante: "", nroComprobante: "",
   fechaComprobante: "",
+  motivoAtraso: "",
   detalleGasto: "", cuentaId: "", cuentaTexto: "",
   centrosCostoDistribucion: [],
   monto: "", formaPago: "Efectivo", cbu: "", alias: "", titular: "", mail: "", whatsapp: "",
@@ -57,6 +63,11 @@ export default function NuevaRGForm({
 }) {
   const router = useRouter();
   const today = new Date().toISOString().split("T")[0];
+  const threeMonthsAgo = (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    return d.toISOString().split("T")[0];
+  })();
 
   const [empresaId, setEmpresaId] = useState(initialRG?.empresaId ?? empresas[0]?.id ?? "");
   const [fecha, setFecha] = useState(initialRG?.fecha ?? today);
@@ -85,12 +96,7 @@ export default function NuevaRGForm({
     setLineas((prev) => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
   }
 
-  function handleProveedorSelect(i: number, provId: string) {
-    const prov = proveedores.find((p) => p.id === provId);
-    if (!prov) {
-      updateLinea(i, "proveedorId", "");
-      return;
-    }
+  function handleProveedorSelect(i: number, prov: Proveedor) {
     const hasBankData = prov.cbu || prov.alias || prov.titularCuenta;
     setLineas((prev) =>
       prev.map((l, idx) =>
@@ -133,13 +139,36 @@ export default function NuevaRGForm({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+
     for (let i = 0; i < lineas.length; i++) {
-      if (!lineas[i].detalleGasto || !lineas[i].monto || !lineas[i].formaPago) {
+      const l = lineas[i];
+      if (!l.detalleGasto || !l.monto || !l.formaPago) {
         setError(`Línea ${i + 1}: completá Detalle, Monto y Forma de pago`);
         setExpandida(i);
         return;
       }
+      if (l.fechaComprobante && l.fechaComprobante < threeMonthsAgo && !l.motivoAtraso.trim()) {
+        setError(`Línea ${i + 1}: la fecha del comprobante tiene más de 3 meses — ingresá el motivo`);
+        setExpandida(i);
+        return;
+      }
+      if (l.centrosCostoDistribucion.length > 0) {
+        for (const d of l.centrosCostoDistribucion) {
+          if (!d.centroId) {
+            setError(`Línea ${i + 1}: seleccioná un centro de costo en cada distribución`);
+            setExpandida(i);
+            return;
+          }
+        }
+        const totalPct = l.centrosCostoDistribucion.reduce((s, d) => s + (parseFloat(d.porcentaje) || 0), 0);
+        if (Math.abs(totalPct - 100) > 0.01) {
+          setError(`Línea ${i + 1}: los centros de costo deben sumar 100% (actualmente ${totalPct.toFixed(1)}%)`);
+          setExpandida(i);
+          return;
+        }
+      }
     }
+
     setSubmitting(true);
     try {
       const url = mode === "editar" ? `/api/rg/${rgId}` : "/api/rg";
@@ -151,6 +180,9 @@ export default function NuevaRGForm({
           ...l,
           monto: parseFloat(l.monto) || 0,
           comprobante: [l.tipoComprobante, l.letraComprobante, l.nroComprobante].filter(Boolean).join(" ") || "",
+          notas: l.motivoAtraso
+            ? `[Motivo atraso: ${l.motivoAtraso}]${l.notas ? " " + l.notas : ""}`
+            : l.notas,
         })),
       };
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -187,7 +219,11 @@ export default function NuevaRGForm({
           </div>
           <div>
             <label className="label">Fecha</label>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className="input" required />
+            {mode === "crear" ? (
+              <input type="date" value={today} disabled className="input bg-gray-50 text-gray-500 cursor-not-allowed" />
+            ) : (
+              <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} max={today} className="input" required />
+            )}
           </div>
           <div>
             <label className="label">Área</label>
@@ -217,10 +253,12 @@ export default function NuevaRGForm({
             linea={linea}
             expanded={expandida === i}
             bankHighlighted={bankHighlight.has(i)}
+            today={today}
+            threeMonthsAgo={threeMonthsAgo}
             onToggle={() => setExpandida(expandida === i ? -1 : i)}
             onUpdate={(field, val) => updateLinea(i, field, val)}
             onCCDistribucionChange={(d) => updateLinea(i, "centrosCostoDistribucion", d)}
-            onProveedorSelect={(id) => handleProveedorSelect(i, id)}
+            onProveedorSelect={(prov) => handleProveedorSelect(i, prov)}
             onDelete={() => eliminarLinea(i)}
             proveedores={proveedores}
             cuentas={cuentas}
@@ -241,7 +279,7 @@ export default function NuevaRGForm({
       {/* Total + submit */}
       <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between">
         <div>
-          <p className="text-sm text-gray-500">Total rendido ({lineas.length} línea{lineas.length !== 1 ? "s" : ""})</p>
+          <p className="text-sm text-gray-500">Importe total ({lineas.length} línea{lineas.length !== 1 ? "s" : ""})</p>
           <p className="text-2xl font-bold text-gray-900">{formatCurrency(total)}</p>
         </div>
         <div className="flex gap-3 items-center">
@@ -259,6 +297,117 @@ export default function NuevaRGForm({
         </div>
       </div>
     </form>
+  );
+}
+
+// ─── Combobox de proveedor con búsqueda por nombre y CUIT ────────────────────
+function ProveedorCombobox({
+  proveedores, proveedorId, proveedorTexto, onSelect, onTextChange, onClear,
+}: {
+  proveedores: Proveedor[];
+  proveedorId: string;
+  proveedorTexto: string;
+  onSelect: (prov: Proveedor) => void;
+  onTextChange: (texto: string) => void;
+  onClear: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const selectedProv = proveedores.find((p) => p.id === proveedorId);
+
+  const filtered = proveedorTexto.trim()
+    ? proveedores.filter((p) => {
+        const q = proveedorTexto.toLowerCase();
+        return (
+          p.razonSocial.toLowerCase().includes(q) ||
+          (p.cuit?.replace(/-/g, "").includes(q.replace(/-/g, "")) ?? false)
+        );
+      }).slice(0, 20)
+    : proveedores.slice(0, 20);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="relative">
+        <input
+          type="text"
+          value={proveedorTexto}
+          onChange={(e) => {
+            onTextChange(e.target.value);
+            if (proveedorId) onClear();
+            setOpen(true);
+          }}
+          onFocus={() => setOpen(true)}
+          className={`input pr-7 ${proveedorId ? "border-blue-300 bg-blue-50/40" : ""}`}
+          placeholder="Buscar por nombre o CUIT, o escribí libremente"
+        />
+        {proveedorTexto && (
+          <button
+            type="button"
+            onClick={() => { onClear(); setOpen(false); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-lg leading-none"
+          >
+            ×
+          </button>
+        )}
+      </div>
+      {selectedProv?.cuit && (
+        <p className="text-xs text-gray-400 mt-0.5">CUIT: {selectedProv.cuit}</p>
+      )}
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+          <ul className="max-h-52 overflow-y-auto">
+            {filtered.map((p) => (
+              <li
+                key={p.id}
+                onMouseDown={() => { onSelect(p); setOpen(false); }}
+                className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${p.id === proveedorId ? "bg-blue-50 text-blue-700" : "text-gray-700"}`}
+              >
+                <div className="text-sm font-medium">{p.razonSocial}</div>
+                {p.cuit && <div className="text-xs text-gray-400">CUIT: {p.cuit}</div>}
+              </li>
+            ))}
+          </ul>
+          {!proveedorTexto.trim() && proveedores.length > 20 && (
+            <p className="px-3 py-1.5 text-xs text-gray-400 border-t border-gray-100">
+              Mostrando 20 de {proveedores.length}. Escribí para filtrar.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Input de monto con formato miles/decimales AR ───────────────────────────
+function MontoInput({ value, onChange, className }: { value: string; onChange: (v: string) => void; className?: string }) {
+  const [focused, setFocused] = useState(false);
+  const n = parseFloat(value);
+  const displayValue = !focused && value !== "" && !isNaN(n)
+    ? new Intl.NumberFormat("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+    : value;
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      className={className}
+      value={displayValue}
+      onChange={(e) => {
+        const raw = e.target.value.replace(/\./g, "").replace(",", ".");
+        if (/^-?\d*\.?\d*$/.test(raw) || raw === "") onChange(raw);
+      }}
+      onFocus={(e) => { setFocused(true); setTimeout(() => e.target.select(), 0); }}
+      onBlur={() => setFocused(false)}
+      placeholder="0,00"
+    />
   );
 }
 
@@ -455,6 +604,7 @@ function MultiCCSelector({
   onChange: (d: CCDistribucion[]) => void;
 }) {
   const totalPct = distribucion.reduce((s, d) => s + (parseFloat(d.porcentaje) || 0), 0);
+  const ok = distribucion.length === 0 || Math.abs(totalPct - 100) < 0.01;
 
   function add() {
     onChange([...distribucion, { centroId: "", nombre: "", porcentaje: "" }]);
@@ -505,9 +655,9 @@ function MultiCCSelector({
           </div>
         );
       })}
-      {distribucion.length > 0 && totalPct !== 100 && (
-        <p className={`text-xs ${totalPct > 100 ? "text-red-500" : "text-orange-500"}`}>
-          Total: {totalPct.toFixed(1)}% {totalPct > 100 ? "(excede 100%)" : "(debe sumar 100%)"}
+      {distribucion.length > 0 && (
+        <p className={`text-xs font-medium ${ok ? "text-green-600" : totalPct > 100 ? "text-red-500" : "text-orange-500"}`}>
+          Total: {totalPct.toFixed(1)}% {ok ? "✓" : totalPct > 100 ? "(excede 100%)" : "(debe sumar 100%)"}
         </p>
       )}
       <button
@@ -523,19 +673,22 @@ function MultiCCSelector({
 
 // ─── Tarjeta de línea ────────────────────────────────────────────────────────
 function LineaCard({
-  index, linea, expanded, bankHighlighted, onToggle, onUpdate, onCCDistribucionChange, onProveedorSelect, onDelete, canDelete,
+  index, linea, expanded, bankHighlighted, today, threeMonthsAgo,
+  onToggle, onUpdate, onCCDistribucionChange, onProveedorSelect, onDelete, canDelete,
   proveedores, cuentas, centros,
 }: {
   index: number; linea: Linea; expanded: boolean; bankHighlighted: boolean;
+  today: string; threeMonthsAgo: string;
   onToggle: () => void; onUpdate: (f: keyof Linea, v: any) => void;
   onCCDistribucionChange: (d: CCDistribucion[]) => void;
-  onProveedorSelect: (id: string) => void; onDelete: () => void; canDelete: boolean;
+  onProveedorSelect: (prov: Proveedor) => void; onDelete: () => void; canDelete: boolean;
   proveedores: Proveedor[]; cuentas: Cuenta[]; centros: Centro[];
 }) {
   const monto = parseFloat(linea.monto) || 0;
   const tieneProveedor = linea.proveedorTexto || linea.proveedorId;
   const selectedCuenta = cuentas.find((c) => c.id === linea.cuentaId);
   const primerCC = linea.centrosCostoDistribucion[0];
+  const isOldDate = linea.fechaComprobante && linea.fechaComprobante < threeMonthsAgo;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -575,22 +728,14 @@ function LineaCard({
             {/* Proveedor */}
             <div>
               <label className="label">Proveedor</label>
-              <select
-                value={linea.proveedorId}
-                onChange={(e) => e.target.value ? onProveedorSelect(e.target.value) : onUpdate("proveedorId", "")}
-                className="input"
-              >
-                <option value="">Texto libre</option>
-                {proveedores.map((p) => <option key={p.id} value={p.id}>{p.razonSocial}</option>)}
-              </select>
-              {!linea.proveedorId && (
-                <input
-                  value={linea.proveedorTexto}
-                  onChange={(e) => onUpdate("proveedorTexto", e.target.value)}
-                  className="input mt-2"
-                  placeholder="Nombre del proveedor"
-                />
-              )}
+              <ProveedorCombobox
+                proveedores={proveedores}
+                proveedorId={linea.proveedorId}
+                proveedorTexto={linea.proveedorTexto}
+                onSelect={onProveedorSelect}
+                onTextChange={(texto) => onUpdate("proveedorTexto", texto)}
+                onClear={() => { onUpdate("proveedorId", ""); onUpdate("proveedorTexto", ""); }}
+              />
             </div>
 
             {/* Comprobante: tipo + letra + número */}
@@ -641,13 +786,27 @@ function LineaCard({
               <input
                 type="date"
                 value={linea.fechaComprobante}
+                max={today}
                 onChange={(e) => {
                   const val = e.target.value;
                   onUpdate("fechaComprobante", val);
                   if (val) onUpdate("fechaPagoSolicitada", calcFechaVencimiento(val));
+                  if (val && val >= threeMonthsAgo) onUpdate("motivoAtraso", "");
                 }}
-                className="input"
+                className={`input ${isOldDate ? "border-orange-400" : ""}`}
               />
+              {isOldDate && (
+                <div className="mt-2">
+                  <label className="label text-orange-600">Motivo (fecha mayor a 3 meses) *</label>
+                  <input
+                    value={linea.motivoAtraso}
+                    onChange={(e) => onUpdate("motivoAtraso", e.target.value)}
+                    className="input border-orange-300 focus:border-orange-500"
+                    placeholder="Explicá por qué se rinde fuera de término"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
             {/* Detalle */}
@@ -658,8 +817,12 @@ function LineaCard({
 
             {/* Monto */}
             <div>
-              <label className="label">Monto ($) *</label>
-              <input type="number" step="0.01" min="0" value={linea.monto} onChange={(e) => onUpdate("monto", e.target.value)} className="input" placeholder="0.00" required />
+              <label className="label">Importe ($) *</label>
+              <MontoInput
+                value={linea.monto}
+                onChange={(v) => onUpdate("monto", v)}
+                className="input"
+              />
             </div>
 
             {/* Cuenta contable */}
@@ -686,9 +849,9 @@ function LineaCard({
               </select>
             </div>
 
-            {/* Fecha de vencimiento (auto-calc, editable) */}
+            {/* Fecha de pago solicitada (auto-calc, editable) */}
             <div>
-              <label className="label">Fecha de vencimiento</label>
+              <label className="label">Fecha de pago solicitada</label>
               <input
                 type="date"
                 value={linea.fechaPagoSolicitada}

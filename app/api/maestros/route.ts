@@ -21,7 +21,12 @@ export async function GET(req: NextRequest) {
       const proveedores = await prisma.proveedor.findMany({
         where: {
           activo: true,
-          ...(q ? { razonSocial: { contains: q, mode: "insensitive" } } : {}),
+          ...(q ? {
+            OR: [
+              { razonSocial: { contains: q, mode: "insensitive" } },
+              { cuit: { contains: q, mode: "insensitive" } },
+            ],
+          } : {}),
         },
         orderBy: { razonSocial: "asc" },
         take: 300,

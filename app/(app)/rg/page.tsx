@@ -7,14 +7,19 @@ import { Suspense } from "react";
 import FechaFiltros from "@/components/FechaFiltros";
 
 const BADGE: Record<string, { bg: string; text: string }> = {
-  Borrador:  { bg: "bg-gray-100",  text: "text-gray-600"   },
-  Enviado:   { bg: "bg-amber-50",  text: "text-amber-700"  },
-  Aprobado:  { bg: "bg-green-50",  text: "text-green-700"  },
-  Pagado:    { bg: "bg-blue-50",   text: "text-blue-700"   },
-  Rechazado: { bg: "bg-red-50",    text: "text-red-600"    },
+  Borrador:      { bg: "bg-gray-100",   text: "text-gray-600"   },
+  Creado:        { bg: "bg-amber-50",   text: "text-amber-700"  },
+  Autorizado:    { bg: "bg-purple-50",  text: "text-purple-700" },
+  Aprobado:      { bg: "bg-green-50",   text: "text-green-700"  },
+  Procesado:     { bg: "bg-teal-50",    text: "text-teal-700"   },
+  Pagado:        { bg: "bg-blue-50",    text: "text-blue-700"   },
+  "En Revisión": { bg: "bg-orange-50",  text: "text-orange-700" },
+  // backward compat
+  Enviado:       { bg: "bg-amber-50",   text: "text-amber-700"  },
+  Rechazado:     { bg: "bg-red-50",     text: "text-red-600"    },
 };
 
-const ESTADOS = ["Borrador", "Enviado", "Aprobado", "Pagado", "Rechazado"];
+const ESTADOS = ["Borrador", "Creado", "Autorizado", "Aprobado", "Procesado", "Pagado", "En Revisión"];
 
 export default async function RegistroPage({
   searchParams,

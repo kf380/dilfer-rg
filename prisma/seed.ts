@@ -30,7 +30,7 @@ async function main() {
     "Operaciones", "Tecnología", "Marketing", "Tesorería",
     "Directorio", "Auditoría", "Mantenimiento", "Logística",
     "Comercial y Compras", "Tecnología e Infraestructura",
-    "Complejo Externo Atlas", "Infraestructura",
+    "Complejo Externo Atlas", "Infraestructura", "Comercial",
   ];
   for (const nombre of areas) {
     await prisma.area.upsert({ where: { nombre }, update: {}, create: { nombre } });
@@ -61,7 +61,8 @@ async function main() {
     { username: "admin", nombreCompleto: "Administrador", password: "Manu1234", rol: "Admin", area: "Administración" },
     { username: "rrhh", nombreCompleto: "Recursos Humanos", password: "rrhh1234", rol: "Usuario", area: "Recursos Humanos" },
     { username: "contable", nombreCompleto: "Contable", password: "conta1234", rol: "Usuario", area: "Contable" },
-    { username: "compras", nombreCompleto: "Comercial", password: "compras1234", rol: "Usuario", area: "Comercial y Compras" },
+    { username: "compras", nombreCompleto: "Compras", password: "compras1234", rol: "Usuario", area: "Compras" },
+    { username: "comercial", nombreCompleto: "Comercial", password: "comer1234", rol: "Usuario", area: "Comercial" },
     { username: "operaciones", nombreCompleto: "Operaciones", password: "opera1234", rol: "Usuario", area: "Operaciones" },
     { username: "tecnologia", nombreCompleto: "Tecnología e Infraestructura", password: "tecno1234", rol: "Usuario", area: "Tecnología e Infraestructura" },
     { username: "marketing", nombreCompleto: "Marketing", password: "marke1234", rol: "Usuario", area: "Marketing" },
@@ -76,7 +77,7 @@ async function main() {
     const hash = await bcrypt.hash(u.password, 10);
     await prisma.usuario.upsert({
       where: { username: u.username },
-      update: {},
+      update: { area: u.area, nombreCompleto: u.nombreCompleto, rol: u.rol },
       create: { username: u.username, nombreCompleto: u.nombreCompleto, passwordHash: hash, rol: u.rol, area: u.area },
     });
   }

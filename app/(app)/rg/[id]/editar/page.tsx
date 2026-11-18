@@ -49,6 +49,7 @@ export default async function EditarRGPage({ params }: { params: Promise<{ id: s
         letraComprobante: letra,
         nroComprobante: nro,
         fechaComprobante: l.fechaComprobante?.toISOString().split("T")[0] ?? "",
+        motivoAtraso: "",
         detalleGasto: l.detalleGasto,
         cuentaId: l.cuentaId ?? "",
         cuentaTexto: l.cuentaTexto ?? "",

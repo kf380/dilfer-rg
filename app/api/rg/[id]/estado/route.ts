@@ -4,22 +4,31 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 const TRANSICIONES: Record<string, string[]> = {
-  Borrador: ["Enviado"],
-  Enviado: ["Aprobado", "Rechazado"],
-  Aprobado: ["Pagado"],
-  Rechazado: [],
-  Pagado: [],
+  Borrador:      ["Creado"],
+  Creado:        ["Autorizado", "En Revisión"],
+  Autorizado:    ["Aprobado", "En Revisión"],
+  Aprobado:      ["Procesado"],
+  Procesado:     ["Pagado"],
+  "En Revisión": ["Creado"],
+  // backward compat con RGs viejos
+  Enviado:       ["Autorizado", "En Revisión"],
+  Rechazado:     [],
+  Pagado:        [],
 };
 
 const ACCIONES: Record<string, string> = {
-  Enviado: "envió",
-  Aprobado: "aprobó",
-  Rechazado: "rechazó",
-  Pagado: "marcó como pagada",
+  Creado:        "creó",
+  Autorizado:    "autorizó",
+  Aprobado:      "aprobó",
+  "En Revisión": "puso en revisión",
+  Procesado:     "procesó",
+  Pagado:        "marcó como pagada",
+  Enviado:       "envió",
+  Rechazado:     "rechazó",
 };
 
 const EstadoSchema = z.object({
-  estado: z.enum(["Enviado", "Aprobado", "Rechazado", "Pagado"]),
+  estado: z.enum(["Creado", "Autorizado", "Aprobado", "Procesado", "Pagado", "En Revisión", "Enviado"]),
   comentario: z.string().optional(),
 });
 
@@ -41,11 +50,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: `No se puede pasar de ${rg.estado} a ${nuevoEstado}` }, { status: 400 });
   }
 
-  if (nuevoEstado === "Enviado" && user.rol !== "Admin" && rg.responsableId !== user.id) {
+  const isAdmin = user.rol === "Admin";
+  const isOwner = rg.responsableId === user.id;
+
+  if (nuevoEstado === "Creado" && !isAdmin && !isOwner) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
-  if (["Aprobado", "Rechazado", "Pagado"].includes(nuevoEstado) && user.rol !== "Admin") {
-    return NextResponse.json({ error: "Solo administradores pueden aprobar, rechazar o marcar como pagada" }, { status: 403 });
+  if (!["Creado"].includes(nuevoEstado) && !isAdmin) {
+    return NextResponse.json({ error: "Solo administradores pueden avanzar el estado" }, { status: 403 });
   }
 
   await prisma.$transaction([
@@ -54,7 +66,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: {
         rgId: id,
         usuarioId: user.id,
-        accion: ACCIONES[nuevoEstado],
+        accion: ACCIONES[nuevoEstado] ?? nuevoEstado,
         estadoAnterior: rg.estado,
         estadoNuevo: nuevoEstado,
         comentario: comentario || null,

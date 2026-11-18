@@ -7,6 +7,12 @@ export function formatDate(date: string | Date | null | undefined): string {
   return format(d, "dd/MM/yyyy", { locale: es });
 }
 
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return "-";
+  const d = typeof date === "string" ? parseISO(date) : date;
+  return format(d, "dd/MM/yyyy HH:mm:ss", { locale: es });
+}
+
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
