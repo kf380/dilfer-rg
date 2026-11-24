@@ -66,7 +66,7 @@ async function main() {
     { username: "operaciones", nombreCompleto: "Operaciones", password: "opera1234", rol: "Usuario", area: "Operaciones" },
     { username: "tecnologia", nombreCompleto: "Tecnología e Infraestructura", password: "tecno1234", rol: "Usuario", area: "Tecnología e Infraestructura" },
     { username: "marketing", nombreCompleto: "Marketing", password: "marke1234", rol: "Usuario", area: "Marketing" },
-    { username: "tesoreria", nombreCompleto: "Tesorería", password: "teso1234", rol: "Usuario", area: "Tesorería" },
+    { username: "tesoreria", nombreCompleto: "Tesorería", password: "teso1234", rol: "Tesorería", area: "Tesorería" },
     { username: "directorio", nombreCompleto: "Directorio", password: "dire1234", rol: "Usuario", area: "Directorio" },
     { username: "auditoria", nombreCompleto: "Auditoría", password: "audi1234", rol: "Usuario", area: "Auditoría" },
     { username: "mantenimiento", nombreCompleto: "Mantenimiento", password: "mante1234", rol: "Usuario", area: "Mantenimiento" },

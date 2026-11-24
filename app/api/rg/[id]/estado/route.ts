@@ -51,12 +51,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const isAdmin = user.rol === "Admin";
+  const isTesoreria = user.rol === "Tesorería";
   const isOwner = rg.responsableId === user.id;
 
   if (nuevoEstado === "Creado" && !isAdmin && !isOwner) {
     return NextResponse.json({ error: "No autorizado" }, { status: 403 });
   }
-  if (!["Creado"].includes(nuevoEstado) && !isAdmin) {
+  if (nuevoEstado === "Pagado" && !isAdmin && !isTesoreria) {
+    return NextResponse.json({ error: "Solo Tesorería o administradores pueden marcar como pagada" }, { status: 403 });
+  }
+  if (!["Creado", "Pagado"].includes(nuevoEstado) && !isAdmin) {
     return NextResponse.json({ error: "Solo administradores pueden avanzar el estado" }, { status: 403 });
   }
 

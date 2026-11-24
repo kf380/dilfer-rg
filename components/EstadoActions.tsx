@@ -27,6 +27,7 @@ export default function EstadoActions({
   const [error, setError] = useState("");
 
   const isAdmin = userRol === "Admin";
+  const isTesoreria = userRol === "Tesorería";
   const isOwner = userId === responsableId;
   const badge = BADGE[estado] ?? { bg: "bg-gray-100", text: "text-gray-600", label: estado };
 
@@ -120,7 +121,7 @@ export default function EstadoActions({
       )}
 
       {/* Procesado → Pagado */}
-      {estado === "Procesado" && isAdmin && (
+      {estado === "Procesado" && (isAdmin || isTesoreria) && (
         <button
           onClick={() => cambiar("Pagado")}
           disabled={loading}

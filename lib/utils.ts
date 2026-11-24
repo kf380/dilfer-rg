@@ -7,10 +7,14 @@ export function formatDate(date: string | Date | null | undefined): string {
   return format(d, "dd/MM/yyyy", { locale: es });
 }
 
+// Argentina has no DST — always UTC-3
+const AR_OFFSET_MS = -3 * 60 * 60 * 1000;
+
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return "-";
   const d = typeof date === "string" ? parseISO(date) : date;
-  return format(d, "dd/MM/yyyy HH:mm:ss", { locale: es });
+  const ar = new Date(d.getTime() + AR_OFFSET_MS);
+  return format(ar, "dd/MM/yyyy HH:mm:ss", { locale: es });
 }
 
 export function formatCurrency(amount: number): string {

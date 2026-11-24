@@ -24,6 +24,7 @@ export default async function NuevoUsuarioPage() {
           <FormField label="Contraseña" name="password" type="password" required />
           <FormField label="Rol" name="rol" as="select" defaultValue="Usuario">
             <option value="Usuario">Usuario</option>
+            <option value="Tesorería">Tesorería</option>
             <option value="Admin">Admin</option>
           </FormField>
         </div>

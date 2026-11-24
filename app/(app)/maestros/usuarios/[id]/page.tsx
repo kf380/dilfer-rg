@@ -33,6 +33,7 @@ export default async function EditarUsuarioPage({ params }: { params: Promise<{ 
           <FormField label="Nueva contraseña" name="password" type="password" placeholder="Dejar vacío para no cambiar" />
           <FormField label="Rol" name="rol" as="select" defaultValue={usuario.rol}>
             <option value="Usuario">Usuario</option>
+            <option value="Tesorería">Tesorería</option>
             <option value="Admin">Admin</option>
           </FormField>
         </div>
