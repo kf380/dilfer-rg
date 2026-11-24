@@ -30,6 +30,7 @@ export default async function RegistroPage({
   if (!session) redirect("/login");
   const user = session.user as any;
   const isAdmin = user.rol === "Admin";
+  const isTesoreria = user.rol === "Tesorería";
   const sp = await searchParams;
   const empresaId = sp.empresaId;
   const estado = sp.estado;
@@ -42,7 +43,7 @@ export default async function RegistroPage({
     ? await prisma.empresa.findMany({ where: { activa: true }, orderBy: { razonSocial: "asc" } })
     : [];
 
-  const baseWhere: any = isAdmin
+  const baseWhere: any = isAdmin || isTesoreria
     ? empresaId ? { empresaId } : {}
     : { responsableId: user.id };
 
