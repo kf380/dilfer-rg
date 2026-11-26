@@ -31,8 +31,8 @@ interface Linea {
   fechaPagoSolicitada: string; notas: string;
 }
 
-function calcFechaVencimiento(fechaComprobante: string): string {
-  const d = new Date(fechaComprobante + "T12:00:00");
+function calcFechaVencimiento(): string {
+  const d = new Date();
   d.setDate(d.getDate() + 7);
   while (d.getDay() !== 2 && d.getDay() !== 5) d.setDate(d.getDate() + 1);
   return d.toISOString().split("T")[0];
@@ -46,7 +46,7 @@ const lineaVacia = (): Linea => ({
   detalleGasto: "", cuentaId: "", cuentaTexto: "",
   centrosCostoDistribucion: [],
   monto: "", formaPago: "Efectivo", cbu: "", alias: "", titular: "", mail: "", whatsapp: "",
-  compraMercaderia: false, fechaPagoSolicitada: "", notas: "",
+  compraMercaderia: false, fechaPagoSolicitada: calcFechaVencimiento(), notas: "",
 });
 
 interface InitialRG {
@@ -790,7 +790,6 @@ function LineaCard({
                 onChange={(e) => {
                   const val = e.target.value;
                   onUpdate("fechaComprobante", val);
-                  if (val) onUpdate("fechaPagoSolicitada", calcFechaVencimiento(val));
                   if (val && val >= threeMonthsAgo) onUpdate("motivoAtraso", "");
                 }}
                 className={`input ${isOldDate ? "border-orange-400" : ""}`}

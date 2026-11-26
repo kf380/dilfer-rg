@@ -32,13 +32,24 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
         token.rol = (user as any).rol;
         token.area = (user as any).area;
         token.empresaId = (user as any).empresaId;
         token.empresaNombre = (user as any).empresaNombre;
+      } else if (token.id) {
+        const dbUser = await prisma.usuario.findUnique({
+          where: { id: token.id as string },
+          include: { empresa: true },
+        });
+        if (dbUser) {
+          token.rol = dbUser.rol;
+          token.area = dbUser.area;
+          token.empresaId = dbUser.empresaId ?? null;
+          token.empresaNombre = dbUser.empresa?.razonSocial ?? null;
+        }
       }
       return token;
     },
