@@ -14,9 +14,9 @@ interface Props {
 }
 
 const navItems = [
-  { href: "/dashboard", label: "Inicio", icon: "🏠", roles: ["Admin", "Usuario"] },
+  { href: "/dashboard", label: "Inicio", icon: "🏠", roles: ["Admin", "Usuario", "Tesorería"] },
   { href: "/rg/nueva", label: "Nueva Rendición", icon: "🆕", roles: ["Admin", "Usuario"] },
-  { href: "/rg", label: "Registro de RG", icon: "📋", roles: ["Admin", "Usuario"] },
+  { href: "/rg", label: "Registro de RG", icon: "📋", roles: ["Admin", "Usuario", "Tesorería"] },
   { section: "Administración", roles: ["Admin"] },
   { href: "/maestros/empresas", label: "Empresas", icon: "🏢", roles: ["Admin"] },
   { href: "/maestros/proveedores", label: "Proveedores", icon: "🚚", roles: ["Admin"] },
